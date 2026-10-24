@@ -1,0 +1,12 @@
+services:
+  nutrilens:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - nutrilens-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  nutrilens-data:

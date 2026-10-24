@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NutriLens: AI Food Calorie Tracker</title>
+  <meta name="description" content="Snap a meal photo and get calories, macros and micronutrients from an AI vision model.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%97%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🥗</span>
+      <div>
+        <h1>NutriLens</h1>
+        <p>AI food calorie tracker</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab active" role="tab" id="tab-analyze" aria-selected="true" aria-controls="view-analyze" data-tab="analyze">📸 Analyze</button>
+      <button class="tab" role="tab" id="tab-dashboard" aria-selected="false" aria-controls="view-dashboard" data-tab="dashboard">📊 Dashboard</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-analyze" class="view active" role="tabpanel" aria-labelledby="tab-analyze">
+      <div class="grid-2">
+        <form id="analyze-form" class="card">
+          <h2>Upload your meal</h2>
+          <label id="dropzone" class="dropzone" for="file">
+            <input type="file" id="file" name="file" accept="image/jpeg,image/png,image/webp" hidden>
+            <img id="preview" alt="Selected meal preview" hidden>
+            <span id="drop-hint">Click or drop a meal photo<br><small>JPEG, PNG or WEBP, up to 10 MB</small></span>
+          </label>
+
+          <label class="field">
+            <span>Meal name <em>(optional)</em></span>
+            <input type="text" name="meal_name" id="meal-name" maxlength="80" placeholder="Lunch, breakfast, dinner…" autocomplete="off">
+          </label>
+
+          <fieldset class="portion">
+            <legend>Portion size</legend>
+            <label><input type="radio" name="portion" value="small"> Small</label>
+            <label><input type="radio" name="portion" value="regular" checked> Regular</label>
+            <label><input type="radio" name="portion" value="large"> Large</label>
+          </fieldset>
+
+          <button type="submit" class="primary" id="analyze-btn" disabled>Analyze meal</button>
+          <p id="analyze-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+
+        <div id="result" class="card result" aria-live="polite">
+          <div class="empty">
+            <div class="empty-icon" aria-hidden="true">📸</div>
+            <p>Upload a meal photo and click <strong>Analyze meal</strong> to see its breakdown here.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-dashboard" class="view" role="tabpanel" aria-labelledby="tab-dashboard" hidden>
+      <div class="toolbar">
+        <label class="field inline">
+          <span>Day</span>
+          <input type="date" id="day">
+        </label>
+        <button type="button" class="ghost" id="refresh">Refresh</button>
+      </div>
+
+      <div id="today-stats" class="stats"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2>Last 7 days: calories</h2>
+          <div id="week-chart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2>Meals</h2>
+          <div id="meal-list" class="meal-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Nutrition figures are AI-generated estimates from a photo. They are not medical advice.
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
