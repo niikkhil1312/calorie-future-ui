@@ -57,6 +57,26 @@ Open <http://localhost:8000>. With Supabase configured, meal data lives in Supab
 
 ---
 
+## Deploy on Render (free tier)
+
+The repo includes a `render.yaml` blueprint and a Docker image that is ready for Render.
+
+1. Sign in at [render.com](https://render.com) with GitHub.
+2. Click **New +**, then **Blueprint**, and choose this repository. Render reads `render.yaml`.
+3. When asked for the secret values, enter `GROQ_API_KEY`, `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`. They are never stored in the repo.
+4. Click **Apply** and wait for the build to finish.
+5. Open the service URL and check `/api/health`. It should show `"groq_configured": true` and `"storage": "supabase"`.
+6. Create an account, add a meal photo, and confirm it shows on the dashboard.
+
+Good to know:
+
+- **Free instances sleep when idle,** so the first visit after a quiet period is slow. A paid instance stays awake.
+- **Run a single instance.** The sign-in rate limiter lives in memory, so each extra instance would have its own count.
+- **The container trusts the proxy's `X-Forwarded-For` header** so rate limits apply per visitor. Only run it behind a proxy such as Render's, not exposed directly to the internet.
+- **Supabase free projects can pause after a period of inactivity.** If the app starts returning storage errors, resume the project in the Supabase dashboard.
+
+---
+
 ## Configuration
 
 All settings come from environment variables or `.env`.
@@ -130,6 +150,7 @@ tests/                 # pytest suite (Groq is mocked, no network needed)
 supabase/schema.sql    # run once in the Supabase SQL Editor
 Dockerfile
 docker-compose.yml
+render.yaml            # Render blueprint (free tier)
 ```
 
 ---

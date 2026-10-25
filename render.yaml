@@ -1,0 +1,19 @@
+# Render Blueprint: New + > Blueprint, then pick this repository.
+# Secret values are entered in the Render dashboard, never stored here.
+services:
+  - type: web
+    name: nutrilens
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
