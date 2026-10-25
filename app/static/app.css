@@ -155,7 +155,7 @@ h3 { font-size: 18px; line-height: 24px; font-weight: 700; color: var(--ink); }
 .screen { padding-bottom: calc(var(--tabbar-h) + 36px + env(safe-area-inset-bottom)); animation: screen-in 0.28s ease both; }
 .screen.flat { padding-bottom: 0; }
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.app[data-screen="add"] .tabbar, .app[data-screen="detail"] .tabbar { display: none; }
+.app[data-screen="add"] .tabbar, .app[data-screen="detail"] .tabbar, .app[data-screen="camera"] .tabbar { display: none; }
 
 .hero {
   position: relative; isolation: isolate; color: #fff;
@@ -468,3 +468,59 @@ h3 { font-size: 18px; line-height: 24px; font-weight: 700; color: var(--ink); }
 .chart-goal:empty { display: none; }
 .chart-empty { display: grid; justify-items: center; gap: 10px; margin: auto; padding: 0 24px; color: var(--muted); font-weight: 700; text-align: center; }
 .chart-empty .chart-empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--blue-50); color: var(--blue-600); }
+
+/* ───────── Camera ───────── */
+.screen.camera-screen { position: fixed; z-index: 40; top: 0; bottom: 0; left: 50%; width: min(100%, 480px); transform: translateX(-50%); padding: 0; overflow: hidden; background: #0b1118; color: #fff; animation: none; }
+.camera-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #0b1118; }
+.camera-video.mirror { transform: scaleX(-1); }
+.camera-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(6, 16, 28, 0.62) 0%, rgba(6, 16, 28, 0) 24%, rgba(6, 16, 28, 0) 52%, rgba(6, 16, 28, 0.82) 100%); }
+.camera-top { position: absolute; z-index: 3; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 12px) 16px 0; }
+.camera-title { text-align: center; font-weight: 700; font-size: 18px; color: #fff; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45); }
+.cam-btn { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.cam-btn[hidden] { display: none; }
+.cam-btn.on { background: #fff; color: var(--navy); }
+
+.scan-frame { position: absolute; z-index: 1; left: 50%; top: 47%; width: min(78%, 360px); aspect-ratio: 1 / 1.1; transform: translate(-50%, -50%); pointer-events: none; }
+.scan-frame .corner { position: absolute; width: 52px; height: 52px; border: 4px solid #fff; filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.35)); }
+.scan-frame .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 26px; }
+.scan-frame .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 26px; }
+.scan-frame .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 26px; }
+.scan-frame .br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 26px; }
+.frame-hint { position: absolute; top: -58px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 9px 18px; border-radius: 99px; background: rgba(255, 255, 255, 0.95); color: var(--ink); font-weight: 700; font-size: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+
+.camera-bottom { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; display: grid; gap: 22px; padding: 0 18px calc(20px + env(safe-area-inset-bottom)); }
+.mode-chips { display: flex; justify-content: center; gap: 12px; }
+.mode { display: grid; justify-items: center; gap: 6px; width: 96px; padding: 12px 6px 10px; border-radius: 20px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.28); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.mode.active { background: #fff; color: var(--ink); }
+.mode.active svg { color: var(--blue-600); }
+.shutter-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.shutter-row .left { justify-self: start; }
+.shutter-row .right { justify-self: end; }
+.shutter { width: 80px; height: 80px; padding: 5px; border-radius: 50%; border: 4px solid #fff; background: transparent; }
+.shutter span { display: block; width: 100%; height: 100%; border-radius: 50%; background: #fff; transition: transform 0.1s; }
+.shutter:active span { transform: scale(0.86); }
+.shutter-flash { position: absolute; inset: 0; z-index: 4; background: #fff; opacity: 0; pointer-events: none; }
+.shutter-flash.go { animation: shot 0.3s ease-out; }
+@keyframes shot { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+
+.camera-error { position: absolute; z-index: 2; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 90px 28px 60px; text-align: center; background: rgba(11, 17, 24, 0.94); }
+.camera-error h2 { color: #fff; }
+.camera-error .muted { color: rgba(255, 255, 255, 0.78); max-width: 300px; }
+.camera-error-icon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); }
+.camera-error-actions { display: grid; gap: 10px; width: min(100%, 320px); margin-top: 10px; }
+.camera-error .btn { cursor: pointer; }
+.btn.outline.light { background: transparent; border-color: rgba(255, 255, 255, 0.6); color: #fff; }
+.link.light { color: #fff; }
+.camera-screen.failed .scan-frame, .camera-screen.failed .camera-bottom, .camera-screen.failed .camera-shade { display: none; }
+
+/* Keep the shutter centred even when the flash and flip buttons are hidden */
+.shutter-row .left { grid-column: 1; }
+.shutter-row .shutter { grid-column: 2; }
+.shutter-row .right { grid-column: 3; }
+
+/* Review screen: show the whole photo, exactly what the AI will see */
+.photo-card.filled { aspect-ratio: auto; height: clamp(250px, 40vh, 380px); background: #0e1a2b; }
+.photo-card.filled img { object-fit: contain; }
+
+/* The scan frame shrinks on short screens so it never runs into the controls */
+.scan-frame { top: 46%; width: auto; aspect-ratio: 1 / 1.1; height: min(calc(min(78vw, 360px) * 1.1), calc(100dvh - 360px)); }

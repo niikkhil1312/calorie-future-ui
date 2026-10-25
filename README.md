@@ -3,7 +3,7 @@
 Snap a photo of a meal and Tell Me Calories estimates its calories, macronutrients and key nutrients using a vision model on Groq (default `qwen/qwen3.8-27b`). Each meal is saved to your private daily log.
 
 - **Home:** a "calories left" hero with a week strip and day arrows, swipeable macro cards (grams left, then share of calories), and meals grouped into Breakfast, Lunch, Dinner and Snacks, plus a Nutrients tab
-- **Add meal:** take or choose a photo, pick the meal type and portion, and watch the AI scan it
+- **Camera:** tap + to open a live camera with a scan frame, flash and a Library shortcut, then review the meal type and portion and watch the AI scan it. It falls back to the phone's camera app or your library if camera access is blocked or the page isn't on https
 - **Meal detail:** photo hero, balance score, tall macro bars, every detected food and key nutrients
 - **History:** your last 30 days, tap a day to open it
 - **Progress:** 7, 14 or 30 day calorie chart against your goal, streak and average macros

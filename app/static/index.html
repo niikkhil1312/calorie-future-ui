@@ -200,6 +200,47 @@
         </section>
       </section>
 
+      <!-- Camera -->
+      <section id="screen-camera" class="screen camera-screen" aria-label="Camera" hidden>
+        <video id="camera-video" class="camera-video" playsinline muted autoplay></video>
+        <div class="camera-shade"></div>
+
+        <div class="camera-top">
+          <button type="button" id="camera-close" class="cam-btn" aria-label="Close camera" data-icon="x" data-size="22"></button>
+          <p class="camera-title">Snap your meal</p>
+          <span class="spacer"></span>
+        </div>
+
+        <div class="scan-frame" aria-hidden="true">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <p class="frame-hint">Fit your whole plate in the frame</p>
+        </div>
+
+        <div id="camera-error" class="camera-error" hidden>
+          <span class="camera-error-icon" data-icon="camera-off" data-size="30"></span>
+          <h2 id="camera-error-title">Camera isn't available</h2>
+          <p id="camera-error-text" class="muted"></p>
+          <div class="camera-error-actions">
+            <label class="btn primary" for="file-camera"><span data-icon="camera" data-size="20"></span>Open camera app</label>
+            <label class="btn outline light" for="file-gallery"><span data-icon="image" data-size="20"></span>Choose from library</label>
+            <button type="button" id="camera-retry" class="link light">Try again</button>
+          </div>
+        </div>
+
+        <div class="camera-bottom">
+          <div class="mode-chips">
+            <button type="button" class="mode active" aria-pressed="true"><span data-icon="scan-line" data-size="26"></span>Scan food</button>
+            <label class="mode" for="file-gallery"><span data-icon="image" data-size="26"></span>Library</label>
+          </div>
+          <div class="shutter-row">
+            <button type="button" id="camera-flash" class="cam-btn left" aria-label="Turn flash on" aria-pressed="false" data-icon="zap-off" data-size="22" hidden></button>
+            <button type="button" id="shutter" class="shutter" aria-label="Take photo"><span></span></button>
+            <button type="button" id="camera-flip" class="cam-btn right" aria-label="Switch camera" data-icon="switch-camera" data-size="22" hidden></button>
+          </div>
+        </div>
+        <div id="shutter-flash" class="shutter-flash" aria-hidden="true"></div>
+      </section>
+
       <!-- Add meal -->
       <section id="screen-add" class="screen flat" aria-label="Add meal" hidden>
         <header class="topbar">
@@ -223,10 +264,8 @@
           </div>
 
           <div id="photo-actions" class="photo-actions">
-            <label class="btn primary" for="file-camera"><span data-icon="camera" data-size="20"></span><span id="camera-label">Take photo</span></label>
+            <button type="button" id="retake-btn" class="btn primary"><span data-icon="camera" data-size="20"></span>Retake photo</button>
             <label class="btn outline" for="file-gallery"><span data-icon="image" data-size="20"></span>Gallery</label>
-            <input id="file-camera" type="file" accept="image/*" capture="environment" class="sr-only">
-            <input id="file-gallery" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only">
           </div>
 
           <div class="field">
@@ -272,6 +311,9 @@
         <button type="button" id="fab" class="fab" aria-label="Add meal" data-icon="plus" data-size="30"></button>
       </nav>
     </div>
+
+    <input id="file-camera" type="file" accept="image/*" capture="environment" class="sr-only" tabindex="-1" aria-hidden="true">
+    <input id="file-gallery" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" tabindex="-1" aria-hidden="true">
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </div>

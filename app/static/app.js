@@ -252,11 +252,12 @@ function go(screen) {
     else button.removeAttribute("aria-current");
   }
   window.scrollTo(0, 0);
-  const loaders = { home: loadHome, progress: loadProgress, history: loadHistory, profile: renderProfile };
+  if (screen !== "camera") stopCamera();
+  const loaders = { home: loadHome, progress: loadProgress, history: loadHistory, profile: renderProfile, camera: startCamera };
   if (loaders[screen]) loaders[screen]();
 }
 
-/** The add and detail screens sit on the history stack, so the phone's back button closes them. */
+/** The camera, add and detail screens sit on the history stack, so the phone's back button closes them. */
 function openOverlay(screen) {
   history.pushState({ overlay: screen }, "");
   go(screen);
@@ -610,7 +611,7 @@ function groupCard(type, meals) {
       el("h3", { text: type.plural }),
       el("p", { text: meals.length ? `${fmt(totals.calories)} kcal` : "Nothing logged" }),
     ),
-    el("button", { type: "button", class: "add-circle", "aria-label": `Add ${type.label.toLowerCase()}`, onclick: () => openAdd(type.key) }, icon("plus", 22)),
+    el("button", { type: "button", class: "add-circle", "aria-label": `Add ${type.label.toLowerCase()}`, onclick: () => openCamera(type.key) }, icon("plus", 22)),
   );
   if (!meals.length) return el("article", { class: "group empty" }, head);
 
@@ -817,17 +818,16 @@ function resetAddForm() {
   $("#preview").removeAttribute("src");
   $("#photo-empty").hidden = false;
   $("#photo-card").classList.remove("filled");
-  $("#camera-label").textContent = "Take photo";
   $("#analyze-btn").disabled = true;
   stopScan();
   setAnalyzeStatus("");
 }
 
-function openAdd(type) {
+function openCamera(type) {
   resetAddForm();
   state.mealType = type || defaultMealType();
   renderTypeChips();
-  openOverlay("add");
+  openOverlay("camera");
 }
 
 function setAnalyzeStatus(message, kind = "") {
@@ -836,18 +836,23 @@ function setAnalyzeStatus(message, kind = "") {
   node.className = `form-status ${kind}`.trim();
 }
 
-function selectFile(file) {
-  if (!file) return;
+/** Returns a message when the photo can't be used, or an empty string when it is fine. */
+function fileProblem(file) {
   if (file.type === "image/heic" || file.type === "image/heif") {
-    setAnalyzeStatus("HEIC photos aren't supported yet. Choose a JPEG, PNG or WEBP photo, or take a new one.");
-    return;
+    return "HEIC photos aren't supported yet. Choose a JPEG, PNG or WEBP photo, or take a new one.";
   }
   if (file.type && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    setAnalyzeStatus("Please choose a JPEG, PNG or WEBP photo.");
-    return;
+    return "Please choose a JPEG, PNG or WEBP photo.";
   }
-  if (file.size > MAX_UPLOAD_BYTES) {
-    setAnalyzeStatus("That photo is larger than 10 MB. Try a smaller one.");
+  if (file.size > MAX_UPLOAD_BYTES) return "That photo is larger than 10 MB. Try a smaller one.";
+  return "";
+}
+
+function selectFile(file) {
+  if (!file) return;
+  const problem = fileProblem(file);
+  if (problem) {
+    setAnalyzeStatus(problem);
     return;
   }
   state.file = file;
@@ -858,9 +863,164 @@ function selectFile(file) {
   preview.hidden = false;
   $("#photo-empty").hidden = true;
   $("#photo-card").classList.add("filled");
-  $("#camera-label").textContent = "Retake";
   $("#analyze-btn").disabled = false;
   setAnalyzeStatus(state.analysisReady === false ? "The server isn't set up for photo analysis yet (missing Groq key)." : "");
+}
+
+/* ───────── Camera ───────── */
+
+const camera = { stream: null, track: null, facing: "environment", torch: false, token: 0 };
+
+/** Back from the review screen to the viewfinder, without stacking another history entry. */
+function reopenCamera() {
+  history.replaceState({ overlay: "camera" }, "");
+  go("camera");
+}
+
+function closeCamera() {
+  if (state.file) {
+    // Opened to retake: return to the photo that was already taken.
+    history.replaceState({ overlay: "add" }, "");
+    go("add");
+  } else {
+    closeOverlay();
+  }
+}
+
+function showCameraError(title, text) {
+  $("#camera-error-title").textContent = title;
+  $("#camera-error-text").textContent = text;
+  $("#camera-error").hidden = false;
+  $("#screen-camera").classList.add("failed");
+}
+
+function describeCameraError(error) {
+  const name = error && error.name;
+  if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") {
+    return ["Camera access is blocked", "Allow camera access for this site in your browser settings, then try again. You can also use your phone's camera app or pick a photo."];
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") {
+    return ["No camera found", "This device doesn't seem to have a camera we can use. Choose a photo from your library instead."];
+  }
+  if (name === "NotReadableError" || name === "AbortError") {
+    return ["The camera is busy", "Another app may be using the camera. Close it and try again."];
+  }
+  return ["Camera isn't available", "Your browser can't open the camera here. Use your phone's camera app or choose a photo."];
+}
+
+function resetTorchButton() {
+  const button = $("#camera-flash");
+  camera.torch = false;
+  button.classList.remove("on");
+  button.setAttribute("aria-pressed", "false");
+  button.setAttribute("aria-label", "Turn flash on");
+  button.replaceChildren(icon("zap-off", 22));
+}
+
+async function startCamera() {
+  stopCamera();
+  const token = ++camera.token;
+  $("#camera-error").hidden = true;
+  $("#screen-camera").classList.remove("failed");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showCameraError(
+      "Camera isn't available",
+      window.isSecureContext
+        ? "Your browser can't open the camera here. Use your phone's camera app or choose a photo."
+        : "The camera needs a secure (https) connection. Use your phone's camera app or choose a photo.",
+    );
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: camera.facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    // The person may have left the screen while the permission prompt was open.
+    if (token !== camera.token || state.screen !== "camera") {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    camera.stream = stream;
+    camera.track = stream.getVideoTracks()[0];
+    const video = $("#camera-video");
+    video.classList.toggle("mirror", camera.facing === "user");
+    video.srcObject = stream;
+    await video.play().catch(() => {});
+    const capabilities = camera.track.getCapabilities ? camera.track.getCapabilities() : {};
+    $("#camera-flash").hidden = !capabilities.torch;
+    resetTorchButton();
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    $("#camera-flip").hidden = devices.filter((device) => device.kind === "videoinput").length < 2;
+  } catch (error) {
+    if (token !== camera.token) return;
+    const [title, text] = describeCameraError(error);
+    showCameraError(title, text);
+  }
+}
+
+function stopCamera() {
+  camera.token++; // cancels a start that is still waiting for permission
+  if (camera.stream) camera.stream.getTracks().forEach((track) => track.stop());
+  camera.stream = null;
+  camera.track = null;
+  camera.torch = false;
+  const video = $("#camera-video");
+  if (video) video.srcObject = null;
+}
+
+async function toggleTorch() {
+  if (!camera.track) return;
+  const next = !camera.torch;
+  try {
+    await camera.track.applyConstraints({ advanced: [{ torch: next }] });
+  } catch {
+    toast("Flash isn't available on this camera.", "error");
+    return;
+  }
+  camera.torch = next;
+  const button = $("#camera-flash");
+  button.classList.toggle("on", next);
+  button.setAttribute("aria-pressed", String(next));
+  button.setAttribute("aria-label", next ? "Turn flash off" : "Turn flash on");
+  button.replaceChildren(icon(next ? "zap" : "zap-off", 22));
+}
+
+/** Use a photo from the camera, the library or the phone's camera app: move on to the review screen. */
+function reviewFile(file) {
+  const problem = fileProblem(file);
+  if (problem) {
+    toast(problem, "error");
+    return;
+  }
+  if (state.screen === "camera") {
+    history.replaceState({ overlay: "add" }, "");
+    go("add");
+  }
+  selectFile(file);
+}
+
+async function takePhoto() {
+  const video = $("#camera-video");
+  if (!camera.stream || !video.videoWidth) return;
+  const scale = Math.min(1, 1600 / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const flash = $("#shutter-flash");
+  flash.classList.remove("go");
+  void flash.offsetWidth; // restart the animation
+  flash.classList.add("go");
+  if (navigator.vibrate) navigator.vibrate(12);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+  if (!blob) {
+    toast("Couldn't capture the photo. Try again.", "error");
+    return;
+  }
+  reviewFile(new File([blob], `meal-${Date.now()}.jpg`, { type: "image/jpeg" }));
 }
 
 function startScan() {
@@ -1156,7 +1316,7 @@ function init() {
   $("#logout").addEventListener("click", onLogout);
 
   for (const button of $$("[data-nav]")) button.addEventListener("click", () => go(button.dataset.nav));
-  $("#fab").addEventListener("click", () => openAdd());
+  $("#fab").addEventListener("click", () => openCamera());
   $("#avatar").addEventListener("click", () => go("profile"));
   $("#add-back").addEventListener("click", closeOverlay);
 
@@ -1182,8 +1342,27 @@ function init() {
 
   for (const id of ["file-camera", "file-gallery"]) {
     const input = $(`#${id}`);
-    input.addEventListener("change", () => { selectFile(input.files[0]); input.value = ""; });
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      input.value = "";
+      if (file) reviewFile(file);
+    });
   }
+  $("#camera-close").addEventListener("click", closeCamera);
+  $("#shutter").addEventListener("click", takePhoto);
+  $("#camera-flash").addEventListener("click", toggleTorch);
+  $("#camera-flip").addEventListener("click", () => {
+    camera.facing = camera.facing === "environment" ? "user" : "environment";
+    startCamera();
+  });
+  $("#camera-retry").addEventListener("click", startCamera);
+  $("#retake-btn").addEventListener("click", reopenCamera);
+  // Release the camera when the app goes to the background, and reopen it on return.
+  document.addEventListener("visibilitychange", () => {
+    if (state.screen !== "camera") return;
+    if (document.hidden) stopCamera();
+    else startCamera();
+  });
   $("#analyze-form").addEventListener("submit", onAnalyze);
 
   $("#goal-minus").addEventListener("click", () => { state.goalDraft = clampGoal(state.goalDraft - GOAL.step); renderGoalDraft(); });

@@ -189,3 +189,12 @@ def test_page_uses_the_new_name_everywhere(client):
     assert "NutriLens" not in page
     assert "<title>Tell Me Calories" in page
     assert "NutriLens" not in client.get("/app.js").text
+
+
+def test_page_has_the_camera_screen(client):
+    page = client.get("/").text
+    for marker in ('id="screen-camera"', 'id="camera-video"', 'id="shutter"', 'id="file-camera"', 'id="file-gallery"', 'id="retake-btn"'):
+        assert marker in page, marker
+    icons = client.get("/icons.js").text
+    for name in ('"zap"', '"zap-off"', '"switch-camera"', '"camera-off"', '"scan-line"'):
+        assert name in icons, name
