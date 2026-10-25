@@ -2,63 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6a6cf3">
   <title>NutriLens: AI Food Calorie Tracker</title>
   <meta name="description" content="Snap a meal photo and get calories, macros and micronutrients from an AI vision model.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%97%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo" aria-hidden="true">🥗</span>
-      <div>
-        <h1>NutriLens</h1>
-        <p>AI food calorie tracker</p>
-      </div>
-    </div>
-    <nav class="tabs" id="tabs" role="tablist" aria-label="Sections" hidden>
-      <button class="tab active" role="tab" id="tab-analyze" aria-selected="true" aria-controls="view-analyze" data-tab="analyze">📸 Analyze</button>
-      <button class="tab" role="tab" id="tab-dashboard" aria-selected="false" aria-controls="view-dashboard" data-tab="dashboard">📊 Dashboard</button>
-    </nav>
-    <div class="account" id="account" hidden>
-      <span id="account-email" class="account-email"></span>
-      <button type="button" class="ghost" id="logout">Sign out</button>
-    </div>
-  </header>
+  <div class="shell">
 
-  <main>
-    <section id="view-auth" class="auth-card card" aria-labelledby="auth-title" hidden>
-      <h2 id="auth-title">Welcome to NutriLens</h2>
-      <p class="auth-lede">Sign in to keep your meals in your own private log.</p>
-      <div class="auth-switch" role="tablist" aria-label="Account">
-        <button type="button" class="tab" role="tab" data-auth-mode="login" aria-selected="true">Sign in</button>
-        <button type="button" class="tab" role="tab" data-auth-mode="signup" aria-selected="false">Create account</button>
+    <!-- ── Sign in / create account ── -->
+    <section id="auth-screen" class="auth" hidden>
+      <div class="auth-hero">
+        <div class="auth-logo" data-icon="leaf" data-size="34"></div>
+        <h1>NutriLens</h1>
+        <p id="auth-sub">Sign in to continue</p>
       </div>
-      <form id="auth-form" class="auth-form" novalidate>
-        <label class="field">
-          <span>Email</span>
-          <input type="email" id="auth-email" name="email" autocomplete="email" required maxlength="254">
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input type="password" id="auth-password" name="password" autocomplete="current-password" required maxlength="128">
-          <small id="auth-hint"></small>
-        </label>
-        <button type="submit" class="primary" id="auth-submit">Sign in</button>
-        <p id="auth-status" class="status" role="status" aria-live="polite"></p>
-      </form>
+      <div class="auth-sheet">
+        <h2 id="auth-title">Welcome back</h2>
+        <form id="auth-form" novalidate>
+          <label class="input-row">
+            <span class="input-icon" data-icon="mail"></span>
+            <input type="email" id="auth-email" name="email" placeholder="Email address" autocomplete="email" required maxlength="254" aria-label="Email address">
+          </label>
+          <label class="input-row">
+            <span class="input-icon" data-icon="lock"></span>
+            <input type="password" id="auth-password" name="password" placeholder="Password" autocomplete="current-password" required maxlength="128" aria-label="Password">
+            <button type="button" id="toggle-password" class="icon-btn" aria-label="Show password" data-icon="eye"></button>
+          </label>
+          <p id="auth-hint" class="hint"></p>
+          <button type="submit" class="btn primary" id="auth-submit">Sign in</button>
+          <p id="auth-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+        <p class="auth-switch">
+          <span id="auth-switch-text">Don't have an account?</span>
+          <button type="button" id="auth-switch" class="link">Sign up</button>
+        </p>
+      </div>
     </section>
 
-    <div id="app-view" hidden>
-    <section id="view-analyze" class="view active" role="tabpanel" aria-labelledby="tab-analyze">
-      <div class="grid-2">
-        <form id="analyze-form" class="card">
-          <h2>Upload your meal</h2>
+    <!-- ── Main app ── -->
+    <div id="app" class="app" data-screen="home" hidden>
+
+      <!-- Home -->
+      <section id="screen-home" class="screen">
+        <header class="hero">
+          <div class="hero-top">
+            <div class="brand"><span class="brand-mark" data-icon="leaf" data-size="18"></span> NutriLens</div>
+            <button type="button" id="avatar" class="avatar" aria-label="Open account"></button>
+          </div>
+          <div id="week" class="week" role="group" aria-label="Choose a day"></div>
+          <div class="hero-main">
+            <div id="left-value" class="big">0</div>
+            <div id="left-label" class="big-label">Kcal left</div>
+            <div class="goal-track" aria-hidden="true"><div id="goal-bar" class="goal-bar"></div></div>
+            <div class="goal-text"><span id="eaten">0 eaten</span><span id="goal-text">Goal 2000</span></div>
+          </div>
+        </header>
+        <div id="macro-row" class="macro-row"></div>
+        <section class="section">
+          <h2 class="section-title">Recently logged</h2>
+          <div id="meal-list" class="meal-list"></div>
+        </section>
+      </section>
+
+      <!-- Progress -->
+      <section id="screen-progress" class="screen" hidden>
+        <header class="page-head">
+          <h1>Progress</h1>
+          <div id="range" class="pill-group" role="group" aria-label="Range"></div>
+        </header>
+        <div id="progress-stats" class="stat-row"></div>
+        <div class="card">
+          <h2 class="card-title">Calories per day</h2>
+          <div id="chart" class="chart"></div>
+        </div>
+      </section>
+
+      <!-- Account -->
+      <section id="screen-account" class="screen" hidden>
+        <header class="page-head"><h1>Account</h1></header>
+        <div class="card profile">
+          <div id="account-avatar" class="avatar large"></div>
+          <div>
+            <strong id="account-email"></strong>
+            <span class="muted">Signed in</span>
+          </div>
+        </div>
+        <form id="goal-form" class="card">
+          <h2 class="card-title">Daily calorie goal</h2>
+          <p class="muted">Macros are split 30% protein, 40% carbs and 30% fat. This setting is saved on this device.</p>
+          <div class="goal-input">
+            <input type="number" id="goal-input" min="800" max="6000" step="50" inputmode="numeric" aria-label="Daily calorie goal">
+            <span>kcal</span>
+          </div>
+          <button type="submit" class="btn primary">Save goal</button>
+          <p id="goal-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+        <button type="button" id="logout" class="btn outline"><span data-icon="logout" data-size="18"></span> Sign out</button>
+        <p class="disclaimer">Nutrition figures are AI-generated estimates from a photo. They are not medical advice.</p>
+      </section>
+
+      <!-- Add meal -->
+      <section id="screen-add" class="screen" hidden>
+        <header class="topbar">
+          <button type="button" id="add-back" class="icon-btn round" aria-label="Back" data-icon="back"></button>
+          <h1>Add meal</h1>
+          <span class="spacer"></span>
+        </header>
+        <form id="analyze-form" class="add-form">
           <label id="dropzone" class="dropzone" for="file">
             <input type="file" id="file" name="file" accept="image/jpeg,image/png,image/webp" hidden>
             <img id="preview" alt="Selected meal preview" hidden>
-            <span id="drop-hint">Click or drop a meal photo<br><small>JPEG, PNG or WEBP, up to 10 MB</small></span>
+            <span id="drop-empty" class="drop-empty">
+              <span class="drop-icon" data-icon="camera" data-size="30"></span>
+              <strong>Take or choose a photo</strong>
+              <small>JPEG, PNG or WEBP, up to 10 MB</small>
+            </span>
           </label>
 
           <label class="field">
@@ -66,54 +127,40 @@
             <input type="text" name="meal_name" id="meal-name" maxlength="80" placeholder="Lunch, breakfast, dinner…" autocomplete="off">
           </label>
 
-          <fieldset class="portion">
-            <legend>Portion size</legend>
-            <label><input type="radio" name="portion" value="small"> Small</label>
-            <label><input type="radio" name="portion" value="regular" checked> Regular</label>
-            <label><input type="radio" name="portion" value="large"> Large</label>
-          </fieldset>
+          <div class="field">
+            <span id="portion-label">Portion size</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="portion-label">
+              <label><input type="radio" name="portion" value="small"><span>Small</span></label>
+              <label><input type="radio" name="portion" value="regular" checked><span>Regular</span></label>
+              <label><input type="radio" name="portion" value="large"><span>Large</span></label>
+            </div>
+          </div>
 
-          <button type="submit" class="primary" id="analyze-btn" disabled>Analyze meal</button>
+          <button type="submit" class="btn primary" id="analyze-btn" disabled>Analyze meal</button>
           <p id="analyze-status" class="status" role="status" aria-live="polite"></p>
         </form>
-
-        <div id="result" class="card result" aria-live="polite">
-          <div class="empty">
-            <div class="empty-icon" aria-hidden="true">📸</div>
-            <p>Upload a meal photo and click <strong>Analyze meal</strong> to see its breakdown here.</p>
-          </div>
+        <div id="loading" class="loading" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Analyzing your meal…</p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="view-dashboard" class="view" role="tabpanel" aria-labelledby="tab-dashboard" hidden>
-      <div class="toolbar">
-        <label class="field inline">
-          <span>Day</span>
-          <input type="date" id="day">
-        </label>
-        <button type="button" class="ghost" id="refresh">Refresh</button>
-      </div>
+      <!-- Meal detail -->
+      <section id="screen-detail" class="screen" hidden>
+        <div id="detail"></div>
+      </section>
 
-      <div id="today-stats" class="stats"></div>
-
-      <div class="grid-2">
-        <div class="card">
-          <h2>Last 7 days: calories</h2>
-          <div id="week-chart" class="chart"></div>
+      <!-- Bottom navigation -->
+      <nav id="bottom-nav" class="bottom-nav" aria-label="Main">
+        <div class="nav-group">
+          <button type="button" class="nav-btn active" data-nav="home" aria-label="Home"><span data-icon="home"></span><small>Home</small></button>
+          <button type="button" class="nav-btn" data-nav="progress" aria-label="Progress"><span data-icon="chart"></span><small>Progress</small></button>
+          <button type="button" class="nav-btn" data-nav="account" aria-label="Account"><span data-icon="user"></span><small>Account</small></button>
         </div>
-        <div class="card">
-          <h2>Meals</h2>
-          <div id="meal-list" class="meal-list"></div>
-        </div>
-      </div>
-    </section>
+        <button type="button" id="fab" class="fab" aria-label="Add meal" data-icon="plus" data-size="26"></button>
+      </nav>
     </div>
-  </main>
-
-  <footer class="footer">
-    Nutrition figures are AI-generated estimates from a photo. They are not medical advice.
-  </footer>
+  </div>
 
   <script src="/app.js" defer></script>
 </body>

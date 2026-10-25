@@ -2,6 +2,7 @@
 
 Snap a photo of a meal and NutriLens estimates its calories, macronutrients and key micronutrients using Groq's vision model (Llama 4 Scout). Each meal is saved to a daily log, and a dashboard shows today's totals and the last 7 days.
 
+- 📱 Mobile-first interface: calories-left hero, macro rings, week strip, photo meal cards and a meal detail page
 - 🔐 Own sign-up and sign-in (email and password), with HttpOnly session cookies and per-user private logs
 - 📸 Upload a meal photo (JPEG, PNG or WEBP, up to 10 MB), with optional meal name and portion size
 - 🧠 AI identifies each food item with portion, calories, protein, carbs and fat
