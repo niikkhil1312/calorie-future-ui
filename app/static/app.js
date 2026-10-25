@@ -17,6 +17,7 @@ const state = {
   file: null,
   previewUrl: null,
   currentMeal: null,
+  lastTotals: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -249,6 +250,7 @@ function togglePassword() {
 
 function showAuth(message = "") {
   state.user = null;
+  state.lastTotals = null;
   $("#app").hidden = true;
   $("#auth-screen").hidden = false;
   $("#auth-password").value = "";
@@ -341,12 +343,19 @@ function renderWeek() {
 async function loadHome() {
   renderWeek();
   const day = state.day;
+  // Show the last known totals straight away, recalculated with the current goal,
+  // so a changed goal never flashes the old numbers while fresh data loads.
+  if (state.lastTotals && state.lastTotals.day === day) {
+    renderHero(state.lastTotals.totals);
+    renderMacros(state.lastTotals.totals);
+  }
   try {
     const [summary, meals] = await Promise.all([
       api(`/api/summary?date=${day}&days=7`),
       api(`/api/meals?date=${day}`),
     ]);
     if (day !== state.day) return;
+    state.lastTotals = { day, totals: summary.today };
     renderHero(summary.today);
     renderMacros(summary.today);
     renderMeals(meals, day);
@@ -530,6 +539,7 @@ async function deleteMeal(meal) {
   if (!window.confirm(`Delete "${meal.meal_name}" from your log?`)) return;
   try {
     await api(`/api/meals/${meal.id}`, { method: "DELETE" });
+    state.lastTotals = null;
     closeOverlay();
   } catch (error) {
     window.alert(error.message);
@@ -588,6 +598,7 @@ async function onAnalyze(event) {
   setStatus("#analyze-status", "");
   try {
     const meal = await api("/api/meals/analyze", { method: "POST", body });
+    state.lastTotals = null;
     state.currentMeal = meal;
     renderDetail(meal);
     // Replace the add screen in history so Back returns to the main screen, not to the form.
