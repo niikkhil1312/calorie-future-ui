@@ -51,7 +51,7 @@ def get_settings() -> Settings:
         groq_model=os.getenv("GROQ_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL,
         groq_base_url=os.getenv("GROQ_BASE_URL", DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL,
         storage_backend=backend,
-        database_path=os.getenv("DATABASE_PATH", str(BASE_DIR / "data" / "nutrilens.db")),
+        database_path=os.getenv("DATABASE_PATH", str(BASE_DIR / "data" / "tell-me-calories.db")),
         supabase_url=supabase_url,
         supabase_service_key=os.getenv("SUPABASE_SERVICE_KEY", "").strip(),
         supabase_bucket=os.getenv("SUPABASE_BUCKET", "meal-thumbnails").strip() or "meal-thumbnails",

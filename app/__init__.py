@@ -1,1 +1,1 @@
-"""NutriLens: AI food calorie tracker."""
+"""Tell Me Calories: AI food calorie tracker."""

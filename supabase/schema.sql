@@ -1,4 +1,4 @@
--- NutriLens schema for Supabase. Run once in the Supabase SQL Editor (safe to re-run).
+-- Tell Me Calories schema for Supabase. Run once in the Supabase SQL Editor (safe to re-run).
 
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),

@@ -3,165 +3,280 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#6a6cf3">
-  <title>NutriLens: AI Food Calorie Tracker</title>
-  <meta name="description" content="Snap a meal photo and get calories, macros and micronutrients from an AI vision model.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%97%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#174778">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tell Me Calories">
+  <title>Tell Me Calories: AI Food Calorie Tracker</title>
+  <meta name="description" content="Snap a photo of your meal and Tell Me Calories shows the calories, macros and nutrients.">
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preload" href="/fonts/lato-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <div class="shell">
 
-    <!-- ── Sign in / create account ── -->
-    <section id="auth-screen" class="auth" hidden>
-      <div class="auth-hero">
-        <div class="auth-logo" data-icon="leaf" data-size="34"></div>
-        <h1>NutriLens</h1>
-        <p id="auth-sub">Sign in to continue</p>
+    <!-- ───────── Loading splash (the free host can take a moment to wake up) ───────── -->
+    <div id="splash" class="splash" role="status" aria-live="polite">
+      <div class="logo-tile" data-icon="flame" data-size="34"></div>
+      <h1>Tell Me Calories</h1>
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="splash-note" class="splash-note">Loading…</p>
+    </div>
+
+    <!-- ───────── Sign in / create account ───────── -->
+    <main id="auth-screen" class="auth" hidden>
+      <div class="auth-top">
+        <svg class="rings" viewBox="0 0 480 360" aria-hidden="true" preserveAspectRatio="xMidYMin slice">
+          <circle cx="400" cy="60" r="90"/><circle cx="400" cy="60" r="150"/><circle cx="400" cy="60" r="210"/><circle cx="400" cy="60" r="270"/>
+        </svg>
+        <div class="logo-tile" data-icon="flame" data-size="34"></div>
+        <h1>Tell Me Calories</h1>
+        <p id="auth-sub">Snap your meal. Know your calories.</p>
       </div>
+
       <div class="auth-sheet">
         <h2 id="auth-title">Welcome back</h2>
-        <form id="auth-form" novalidate>
-          <label class="input-row">
-            <span class="input-icon" data-icon="mail"></span>
-            <input type="email" id="auth-email" name="email" placeholder="Email address" autocomplete="email" required maxlength="254" aria-label="Email address">
-          </label>
-          <label class="input-row">
-            <span class="input-icon" data-icon="lock"></span>
-            <input type="password" id="auth-password" name="password" placeholder="Password" autocomplete="current-password" required maxlength="128" aria-label="Password">
-            <button type="button" id="toggle-password" class="icon-btn" aria-label="Show password" data-icon="eye"></button>
-          </label>
-          <p id="auth-hint" class="hint"></p>
-          <button type="submit" class="btn primary" id="auth-submit">Sign in</button>
-          <p id="auth-status" class="status" role="status" aria-live="polite"></p>
-        </form>
-        <p class="auth-switch">
-          <span id="auth-switch-text">Don't have an account?</span>
-          <button type="button" id="auth-switch" class="link">Sign up</button>
-        </p>
-      </div>
-    </section>
+        <p id="auth-lede" class="lede">Sign in to see today's meals.</p>
 
-    <!-- ── Main app ── -->
+        <form id="auth-form" novalidate>
+          <div class="field">
+            <label for="auth-email">Email</label>
+            <div class="input-row">
+              <span class="input-icon" data-icon="mail"></span>
+              <input id="auth-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" maxlength="254" required>
+            </div>
+            <p id="email-error" class="field-error" role="alert"></p>
+          </div>
+
+          <div class="field">
+            <label for="auth-password">Password</label>
+            <div class="input-row">
+              <span class="input-icon" data-icon="lock"></span>
+              <input id="auth-password" name="password" type="password" autocomplete="current-password" placeholder="Your password" maxlength="128" required>
+              <button type="button" id="toggle-password" class="icon-btn" aria-label="Show password" data-icon="eye"></button>
+            </div>
+            <p id="password-error" class="field-error" role="alert"></p>
+            <p id="pw-rule" class="pw-rule" hidden><span data-icon="circle-check" data-size="16"></span><span>At least 10 characters</span></p>
+          </div>
+
+          <button type="submit" class="btn primary" id="auth-submit">Sign in</button>
+          <p id="auth-status" class="form-status" role="alert"></p>
+        </form>
+
+        <p class="auth-switch">
+          <span id="auth-switch-text">New here?</span>
+          <button type="button" id="auth-switch" class="link">Create an account</button>
+        </p>
+        <p class="auth-fine">Calories are AI estimates from a photo, not medical advice.</p>
+      </div>
+    </main>
+
+    <!-- ───────── Main app ───────── -->
     <div id="app" class="app" data-screen="home" hidden>
 
       <!-- Home -->
-      <section id="screen-home" class="screen">
+      <section id="screen-home" class="screen" aria-label="Home">
         <header class="hero">
-          <div class="hero-top">
-            <div class="brand"><span class="brand-mark" data-icon="leaf" data-size="18"></span> NutriLens</div>
-            <button type="button" id="avatar" class="avatar" aria-label="Open account"></button>
+          <div class="hero-bar">
+            <button type="button" id="avatar" class="avatar glass" aria-label="Open profile"></button>
+            <h1 id="home-title" class="hero-title">Today</h1>
+            <button type="button" id="open-calendar" class="round-btn glass" aria-label="Pick a date" data-icon="calendar" data-size="20"></button>
+            <input type="date" id="date-picker" class="sr-only" tabindex="-1" aria-hidden="true">
           </div>
+
           <div id="week" class="week" role="group" aria-label="Choose a day"></div>
+
           <div class="hero-main">
-            <div id="left-value" class="big">0</div>
-            <div id="left-label" class="big-label">Kcal left</div>
-            <div class="goal-track" aria-hidden="true"><div id="goal-bar" class="goal-bar"></div></div>
-            <div class="goal-text"><span id="eaten">0 eaten</span><span id="goal-text">Goal 2000</span></div>
+            <button type="button" id="day-prev" class="hero-chev" aria-label="Previous day" data-icon="chevron-left" data-size="26"></button>
+            <div class="hero-number" aria-live="polite">
+              <div id="left-value" class="big">0</div>
+              <div id="left-label" class="big-label">Kcal left</div>
+            </div>
+            <button type="button" id="day-next" class="hero-chev" aria-label="Next day" data-icon="chevron-right" data-size="26"></button>
+          </div>
+
+          <div class="hero-sub">
+            <span id="eaten">0 eaten</span><span class="sep" aria-hidden="true"></span><span id="goal-text">Goal 2,000</span>
           </div>
         </header>
-        <div id="macro-row" class="macro-row"></div>
+
+        <section class="macros" aria-label="Macros">
+          <div id="macro-track" class="macro-track"></div>
+          <div id="macro-dots" class="dots" aria-hidden="true"></div>
+        </section>
+
         <section class="section">
-          <h2 class="section-title">Recently logged</h2>
-          <div id="meal-list" class="meal-list"></div>
+          <div class="section-head">
+            <h2>Daily meals</h2>
+          </div>
+          <div class="seg" role="tablist" aria-label="Daily view">
+            <button type="button" role="tab" class="seg-btn active" data-home-tab="meals" aria-selected="true">Meals</button>
+            <button type="button" role="tab" class="seg-btn" data-home-tab="nutrients" aria-selected="false">Nutrients</button>
+          </div>
+          <div id="meal-groups" class="groups"></div>
+          <div id="nutrients" class="nutrients" hidden></div>
         </section>
       </section>
 
-      <!-- Progress -->
-      <section id="screen-progress" class="screen" hidden>
+      <!-- History -->
+      <section id="screen-history" class="screen" aria-label="History" hidden>
         <header class="page-head">
-          <h1>Progress</h1>
-          <div id="range" class="pill-group" role="group" aria-label="Range"></div>
+          <h1>History</h1>
+          <p class="lede">Your last 30 days. Tap a day to open it.</p>
         </header>
-        <div id="progress-stats" class="stat-row"></div>
-        <div class="card">
-          <h2 class="card-title">Calories per day</h2>
-          <div id="chart" class="chart"></div>
-        </div>
+        <div id="history-list" class="history-list"></div>
       </section>
 
-      <!-- Account -->
-      <section id="screen-account" class="screen" hidden>
-        <header class="page-head"><h1>Account</h1></header>
-        <div class="card profile">
-          <div id="account-avatar" class="avatar large"></div>
-          <div>
-            <strong id="account-email"></strong>
-            <span class="muted">Signed in</span>
+      <!-- Progress -->
+      <section id="screen-progress" class="screen" aria-label="Progress" hidden>
+        <header class="hero hero-compact">
+          <div class="hero-bar">
+            <span class="spacer"></span>
+            <h1 class="hero-title">Progress</h1>
+            <span class="spacer"></span>
           </div>
-        </div>
-        <form id="goal-form" class="card">
-          <h2 class="card-title">Daily calorie goal</h2>
-          <p class="muted">Macros are split 30% protein, 40% carbs and 30% fat. This setting is saved on this device.</p>
-          <div class="goal-input">
-            <input type="number" id="goal-input" min="800" max="6000" step="50" inputmode="numeric" aria-label="Daily calorie goal">
-            <span>kcal</span>
+          <div id="range" class="seg glass-seg" role="group" aria-label="Range"></div>
+          <div class="hero-main solo">
+            <div class="hero-number">
+              <div id="avg-value" class="big">0</div>
+              <div class="big-label">Average kcal per day</div>
+            </div>
           </div>
-          <button type="submit" class="btn primary">Save goal</button>
-          <p id="goal-status" class="status" role="status" aria-live="polite"></p>
-        </form>
-        <button type="button" id="logout" class="btn outline"><span data-icon="logout" data-size="18"></span> Sign out</button>
-        <p class="disclaimer">Nutrition figures are AI-generated estimates from a photo. They are not medical advice.</p>
+          <div class="hero-sub"><span id="avg-sub">Goal 2,000</span></div>
+        </header>
+
+        <section class="section pull-up">
+          <div class="card">
+            <div class="card-head"><h2 class="card-title">Calories per day</h2><span id="chart-goal" class="chart-goal"></span></div>
+            <div id="chart" class="chart"></div>
+            <p id="chart-detail" class="chart-detail">Tap a bar for details.</p>
+          </div>
+          <div id="progress-stats" class="stat-grid"></div>
+          <div class="card">
+            <h2 class="card-title">Average macros</h2>
+            <div id="macro-split"></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- Profile -->
+      <section id="screen-profile" class="screen" aria-label="Profile" hidden>
+        <header class="hero hero-compact">
+          <div class="hero-bar">
+            <span class="spacer"></span>
+            <h1 class="hero-title">Profile</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="profile-head">
+            <div id="profile-avatar" class="avatar xl glass"></div>
+            <p id="profile-email" class="profile-email"></p>
+          </div>
+        </header>
+
+        <section class="section pull-up">
+          <div class="card">
+            <h2 class="card-title">Daily calorie goal</h2>
+            <p class="muted">Saved on this device. Your macro targets follow it.</p>
+            <div class="stepper">
+              <button type="button" id="goal-minus" class="round-btn" aria-label="Lower goal" data-icon="minus" data-size="22"></button>
+              <div class="stepper-value"><input id="goal-input" type="number" inputmode="numeric" min="800" max="6000" step="50" aria-label="Daily calorie goal"><span>kcal</span></div>
+              <button type="button" id="goal-plus" class="round-btn" aria-label="Raise goal" data-icon="plus" data-size="22"></button>
+            </div>
+            <div id="goal-presets" class="chips"></div>
+            <p id="goal-macros" class="goal-macros"></p>
+            <button type="button" id="goal-save" class="btn primary" disabled>Save goal</button>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">About</h2>
+            <p class="muted">Tell Me Calories reads your meal photo with AI and estimates calories, macros and nutrients. Estimates can be off, so treat them as a guide, not medical advice.</p>
+          </div>
+
+          <button type="button" id="logout" class="btn outline danger"><span data-icon="log-out" data-size="20"></span>Sign out</button>
+        </section>
       </section>
 
       <!-- Add meal -->
-      <section id="screen-add" class="screen" hidden>
+      <section id="screen-add" class="screen flat" aria-label="Add meal" hidden>
         <header class="topbar">
-          <button type="button" id="add-back" class="icon-btn round" aria-label="Back" data-icon="back"></button>
+          <button type="button" id="add-back" class="round-btn" aria-label="Back" data-icon="arrow-left" data-size="22"></button>
           <h1>Add meal</h1>
           <span class="spacer"></span>
         </header>
-        <form id="analyze-form" class="add-form">
-          <label id="dropzone" class="dropzone" for="file">
-            <input type="file" id="file" name="file" accept="image/jpeg,image/png,image/webp" hidden>
-            <img id="preview" alt="Selected meal preview" hidden>
-            <span id="drop-empty" class="drop-empty">
-              <span class="drop-icon" data-icon="camera" data-size="30"></span>
-              <strong>Take or choose a photo</strong>
-              <small>JPEG, PNG or WEBP, up to 10 MB</small>
-            </span>
-          </label>
 
-          <label class="field">
-            <span>Meal name <em>(optional)</em></span>
-            <input type="text" name="meal_name" id="meal-name" maxlength="80" placeholder="Lunch, breakfast, dinner…" autocomplete="off">
-          </label>
-
-          <div class="field">
-            <span id="portion-label">Portion size</span>
-            <div class="segmented" role="radiogroup" aria-labelledby="portion-label">
-              <label><input type="radio" name="portion" value="small"><span>Small</span></label>
-              <label><input type="radio" name="portion" value="regular" checked><span>Regular</span></label>
-              <label><input type="radio" name="portion" value="large"><span>Large</span></label>
+        <form id="analyze-form" class="add-form" novalidate>
+          <div id="photo-card" class="photo-card">
+            <img id="preview" alt="Selected meal" hidden>
+            <div id="photo-empty" class="photo-empty">
+              <span class="photo-badge" data-icon="camera" data-size="34"></span>
+              <strong>Add a photo of your meal</strong>
+              <span>Good light and the whole plate in frame works best.</span>
+            </div>
+            <div id="scan" class="scan" hidden aria-live="polite">
+              <div class="scan-line"></div>
+              <p id="scan-text" class="scan-text">Spotting foods…</p>
             </div>
           </div>
 
-          <button type="submit" class="btn primary" id="analyze-btn" disabled>Analyze meal</button>
-          <p id="analyze-status" class="status" role="status" aria-live="polite"></p>
+          <div id="photo-actions" class="photo-actions">
+            <label class="btn primary" for="file-camera"><span data-icon="camera" data-size="20"></span><span id="camera-label">Take photo</span></label>
+            <label class="btn outline" for="file-gallery"><span data-icon="image" data-size="20"></span>Gallery</label>
+            <input id="file-camera" type="file" accept="image/*" capture="environment" class="sr-only">
+            <input id="file-gallery" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only">
+          </div>
+
+          <div class="field">
+            <span class="label" id="type-label">Meal</span>
+            <div id="type-chips" class="chips choice" role="radiogroup" aria-labelledby="type-label"></div>
+          </div>
+
+          <div class="field">
+            <label for="meal-name">Name <em>(optional)</em></label>
+            <div class="input-row">
+              <input id="meal-name" name="meal_name" type="text" maxlength="80" placeholder="e.g. Dal tadka with rice" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="label" id="portion-label">Portion size</span>
+            <div class="seg wide" role="radiogroup" aria-labelledby="portion-label">
+              <label class="seg-opt"><input type="radio" name="portion" value="small"><span>Small</span></label>
+              <label class="seg-opt"><input type="radio" name="portion" value="regular" checked><span>Regular</span></label>
+              <label class="seg-opt"><input type="radio" name="portion" value="large"><span>Large</span></label>
+            </div>
+          </div>
+
+          <div class="cta-bar">
+            <p id="analyze-status" class="form-status" role="alert"></p>
+            <button type="submit" id="analyze-btn" class="btn primary" disabled>Analyze with AI</button>
+          </div>
         </form>
-        <div id="loading" class="loading" hidden>
-          <div class="spinner" aria-hidden="true"></div>
-          <p>Analyzing your meal…</p>
-        </div>
       </section>
 
       <!-- Meal detail -->
-      <section id="screen-detail" class="screen" hidden>
+      <section id="screen-detail" class="screen flat" aria-label="Meal details" hidden>
         <div id="detail"></div>
       </section>
 
       <!-- Bottom navigation -->
-      <nav id="bottom-nav" class="bottom-nav" aria-label="Main">
-        <div class="nav-group">
-          <button type="button" class="nav-btn active" data-nav="home" aria-label="Home"><span data-icon="home"></span><small>Home</small></button>
-          <button type="button" class="nav-btn" data-nav="progress" aria-label="Progress"><span data-icon="chart"></span><small>Progress</small></button>
-          <button type="button" class="nav-btn" data-nav="account" aria-label="Account"><span data-icon="user"></span><small>Account</small></button>
-        </div>
-        <button type="button" id="fab" class="fab" aria-label="Add meal" data-icon="plus" data-size="26"></button>
+      <nav id="bottom-nav" class="tabbar" aria-label="Main">
+        <button type="button" class="tab active" data-nav="home" aria-label="Home"><span data-icon="house" data-size="24"></span><small>Home</small></button>
+        <button type="button" class="tab" data-nav="progress" aria-label="Progress"><span data-icon="chart-column" data-size="24"></span><small>Progress</small></button>
+        <span class="tab-gap" aria-hidden="true"></span>
+        <button type="button" class="tab" data-nav="history" aria-label="History"><span data-icon="history" data-size="24"></span><small>History</small></button>
+        <button type="button" class="tab" data-nav="profile" aria-label="Profile"><span data-icon="user" data-size="24"></span><small>Profile</small></button>
+        <button type="button" id="fab" class="fab" aria-label="Add meal" data-icon="plus" data-size="30"></button>
       </nav>
     </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </div>
 
+  <script src="/icons.js" defer></script>
   <script src="/app.js" defer></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-"""NutriLens FastAPI application: accounts, meal photo analysis, meal log and dashboard API."""
+"""Tell Me Calories FastAPI application: accounts, meal photo analysis, meal log and dashboard API."""
 
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -40,10 +40,11 @@ from .supabase_store import SupabaseStore
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 PORTIONS = ("small", "regular", "large")
+MEAL_TYPES = ("breakfast", "lunch", "dinner", "snack")
 MAX_SUMMARY_DAYS = 31
 MAX_MEAL_NAME = 80
 CSRF_HEADER = "x-requested-with"
-CSRF_VALUE = "NutriLens"
+CSRF_VALUE = "TellMeCalories"
 
 
 class Credentials(BaseModel):
@@ -68,7 +69,7 @@ def create_app(settings: Settings | None = None, vision: Any = None, store: Any 
     login_by_email = RateLimiter(max_attempts=5, window_seconds=15 * 60)
     signup_by_ip = RateLimiter(max_attempts=10, window_seconds=60 * 60)
 
-    app = FastAPI(title="NutriLens", version="3.0.0")
+    app = FastAPI(title="Tell Me Calories", version="3.0.0")
 
     if isinstance(store, SupabaseStore):
         store.ensure_bucket()
@@ -172,6 +173,7 @@ def create_app(settings: Settings | None = None, vision: Any = None, store: Any 
         meal_name: str = Form(""),
         portion: str = Form("regular"),
         meal_date: str | None = Form(None),
+        meal_type: str | None = Form(None),
         user: dict[str, str] = Depends(current_user),
     ) -> dict[str, Any]:
         if not vision.configured:
@@ -180,6 +182,9 @@ def create_app(settings: Settings | None = None, vision: Any = None, store: Any 
         portion = portion.lower()
         if portion not in PORTIONS:
             raise HTTPException(400, "portion must be small, regular or large")
+        meal_type = (meal_type or "").strip().lower() or None
+        if meal_type is not None and meal_type not in MEAL_TYPES:
+            raise HTTPException(400, "meal_type must be breakfast, lunch, dinner or snack")
         meal_day = _parse_day(meal_date) if meal_date else _today()
         name = " ".join(meal_name.split())[:MAX_MEAL_NAME]
 
@@ -201,6 +206,10 @@ def create_app(settings: Settings | None = None, vision: Any = None, store: Any 
             raise HTTPException(422, str(exc)) from exc
         except (NutritionError, VisionError) as exc:
             raise HTTPException(502, str(exc)) from exc
+
+        if meal_type:
+            # Kept inside the analysis JSON so no database change is needed.
+            analysis["meal_type"] = meal_type
 
         meal_id = str(uuid4())
         try:

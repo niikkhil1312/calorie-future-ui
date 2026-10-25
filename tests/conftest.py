@@ -81,7 +81,7 @@ def sign_up(client: TestClient, email: str = "cook@example.com", password: str =
     response = client.post(
         "/api/auth/signup",
         json={"email": email, "password": password},
-        headers={"X-Requested-With": "NutriLens"},
+        headers={"X-Requested-With": "TellMeCalories"},
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -91,6 +91,6 @@ def sign_up(client: TestClient, email: str = "cook@example.com", password: str =
 def client(settings, vision):
     """A client signed in as a fresh user. Requests carry the CSRF header by default."""
     with TestClient(create_app(settings=settings, vision=vision)) as test_client:
-        test_client.headers["X-Requested-With"] = "NutriLens"
+        test_client.headers["X-Requested-With"] = "TellMeCalories"
         sign_up(test_client)
         yield test_client

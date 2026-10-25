@@ -1,15 +1,16 @@
-# 🥗 NutriLens: AI Food Calorie Tracker
+# 🥗 Tell Me Calories: AI Food Calorie Tracker
 
-Snap a photo of a meal and NutriLens estimates its calories, macronutrients and key micronutrients using a vision model on Groq (default `qwen/qwen3.8-27b`). Each meal is saved to a daily log, and a dashboard shows today's totals and the last 7 days.
+Snap a photo of a meal and Tell Me Calories estimates its calories, macronutrients and key nutrients using a vision model on Groq (default `qwen/qwen3.8-27b`). Each meal is saved to your private daily log.
 
-- 📱 Mobile-first interface: calories-left hero, macro rings, week strip, photo meal cards and a meal detail page
-- 🔐 Own sign-up and sign-in (email and password), with HttpOnly session cookies and per-user private logs
-- 📸 Upload a meal photo (JPEG, PNG or WEBP, up to 10 MB), with optional meal name and portion size
-- 🧠 AI identifies each food item with portion, calories, protein, carbs and fat
-- 📊 Calorie and macro breakdown, macro split, balance score and micronutrients
-- 🗂️ Daily meal log with thumbnails, delete, and a 7-day calorie chart
-- 💾 Supabase (Postgres + Storage) for production, SQLite for local development
-- 🐳 Docker and docker-compose support
+- **Home:** a "calories left" hero with a week strip and day arrows, swipeable macro cards (grams left, then share of calories), and meals grouped into Breakfast, Lunch, Dinner and Snacks, plus a Nutrients tab
+- **Add meal:** take or choose a photo, pick the meal type and portion, and watch the AI scan it
+- **Meal detail:** photo hero, balance score, tall macro bars, every detected food and key nutrients
+- **History:** your last 30 days, tap a day to open it
+- **Progress:** 7, 14 or 30 day calorie chart against your goal, streak and average macros
+- **Profile:** a daily calorie goal with matching macro targets
+- Own sign-up and sign-in (email and password), HttpOnly session cookies, and per-user private logs
+- Installable on a phone's home screen, with loading, empty and offline states throughout
+- Supabase (Postgres and Storage) for production, SQLite for local development, Docker and Render support
 
 **Nutrition figures are AI estimates from a photo.** They are not medical advice.
 
@@ -88,7 +89,7 @@ All settings come from environment variables or `.env`.
 | `SUPABASE_URL` | With Supabase | none | Project URL, e.g. `https://xyz.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | With Supabase | none | Server-only secret key |
 | `SUPABASE_BUCKET` | No | `meal-thumbnails` | Private Storage bucket for thumbnails |
-| `DATABASE_PATH` | No | `data/nutrilens.db` | SQLite file (sqlite backend only) |
+| `DATABASE_PATH` | No | `data/tell-me-calories.db` | SQLite file (sqlite backend only) |
 | `SESSION_DAYS` | No | `14` | How long a sign-in lasts |
 | `COOKIE_SECURE` | No | `false` | Set `true` when served over HTTPS |
 | `GROQ_MODEL` | No | `qwen/qwen3.8-27b` | Groq vision model ID |
@@ -101,7 +102,7 @@ Groq retires models regularly. The previous default, Llama 4 Scout, is no longer
 
 ## API
 
-All meal routes require a signed-in session. Every write also needs the header `X-Requested-With: NutriLens`, which the built-in frontend sends. Interactive docs are at `/docs` while the server runs.
+All meal routes require a signed-in session. Every write also needs the header `X-Requested-With: TellMeCalories`, which the built-in frontend sends. Interactive docs are at `/docs` while the server runs.
 
 | Method | Path | Description |
 |---|---|---|
@@ -123,7 +124,7 @@ Error responses:
 |---|---|
 | `400` | Bad input: not an image, empty file, invalid portion, date, email or password |
 | `401` | Not signed in, or the session has expired |
-| `403` | A write request without the `X-Requested-With: NutriLens` header |
+| `403` | A write request without the `X-Requested-With: TellMeCalories` header |
 | `409` | Email already registered |
 | `429` | Too many sign-up or sign-in attempts |
 | `413` | File larger than `MAX_UPLOAD_MB` |
@@ -174,6 +175,12 @@ The suite covers JSON parsing and normalisation, totals and scoring, every API r
 - **Behind a proxy.** Rate limiting uses the client IP. Configure your proxy so uvicorn sees the real address, or all users share one limit.
 - **Estimates vary.** Calorie values depend on what the model sees. Oil, ghee and hidden ingredients are hard to judge from a photo.
 - **Balance score is a heuristic** based on macro ratios and food variety. It is not a clinical measure.
+
+---
+
+## Design
+
+The palette follows the brand style guide (Pay Blue and Pal Blue as primary, Sand and Slate neutrals, Berry, Tangerine and Aqua for protein, carbs and fat). Type is [Lato](https://fonts.google.com/specifiedpage?query=Lato) (SIL Open Font License, bundled in `app/static/fonts`). Icons are from [Lucide](https://lucide.dev) (ISC license, bundled in `app/static/icons.js`).
 
 ---
 

@@ -11,7 +11,7 @@ from app.db import SqliteStore
 from app.main import create_app
 from tests.conftest import PASSWORD, FakeVision, make_png, sign_up
 
-CSRF = {"X-Requested-With": "NutriLens"}
+CSRF = {"X-Requested-With": "TellMeCalories"}
 
 
 def new_client(settings: Settings, store: SqliteStore | None = None) -> TestClient:

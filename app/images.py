@@ -6,7 +6,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
 ANALYSIS_SIDE = 1024
-THUMBNAIL_SIDE = 360
+THUMBNAIL_SIDE = 720
 
 
 class ImageError(ValueError):

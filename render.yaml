@@ -2,7 +2,7 @@
 # Secret values are entered in the Render dashboard, never stored here.
 services:
   - type: web
-    name: nutrilens
+    name: tell-me-calories
     runtime: docker
     plan: free
     healthCheckPath: /api/health

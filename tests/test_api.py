@@ -103,7 +103,7 @@ def test_model_rejection_returns_422(settings):
 
     app = create_app(settings=settings, vision=FakeVision(reply='{"error": "No food here."}'))
     with TestClient(app) as client:
-        client.headers["X-Requested-With"] = "NutriLens"
+        client.headers["X-Requested-With"] = "TellMeCalories"
         sign_up(client)
         response = upload(client)
     assert response.status_code == 422
@@ -117,7 +117,7 @@ def test_unparseable_model_reply_returns_502(settings):
 
     app = create_app(settings=settings, vision=FakeVision(reply="I think it's pizza!"))
     with TestClient(app) as client:
-        client.headers["X-Requested-With"] = "NutriLens"
+        client.headers["X-Requested-With"] = "TellMeCalories"
         sign_up(client)
         response = upload(client)
     assert response.status_code == 502
@@ -130,7 +130,7 @@ def test_groq_failure_returns_502(settings):
 
     app = create_app(settings=settings, vision=FakeVision(error=VisionError("Groq returned HTTP 500")))
     with TestClient(app) as client:
-        client.headers["X-Requested-With"] = "NutriLens"
+        client.headers["X-Requested-With"] = "TellMeCalories"
         sign_up(client)
         response = upload(client)
     assert response.status_code == 502
@@ -144,7 +144,7 @@ def test_missing_api_key_returns_503(settings):
 
     app = create_app(settings=settings, vision=FakeVision(configured=False))
     with TestClient(app) as client:
-        client.headers["X-Requested-With"] = "NutriLens"
+        client.headers["X-Requested-With"] = "TellMeCalories"
         sign_up(client)
         assert client.get("/api/health").json()["groq_configured"] is False
         response = upload(client)
@@ -155,6 +155,37 @@ def test_missing_api_key_returns_503(settings):
 def test_static_frontend_is_served(client):
     page = client.get("/")
     assert page.status_code == 200
-    assert "NutriLens" in page.text
+    assert "Tell Me Calories" in page.text
     assert client.get("/app.js").status_code == 200
     assert client.get("/app.css").status_code == 200
+
+
+def test_meal_type_is_saved_with_the_meal(client):
+    meal = upload(client, data={"meal_type": "Lunch"}).json()
+    assert meal["analysis"]["meal_type"] == "lunch"
+    assert client.get(f"/api/meals/{meal['id']}").json()["analysis"]["meal_type"] == "lunch"
+
+
+def test_meal_type_is_optional(client):
+    meal = upload(client).json()
+    assert "meal_type" not in meal["analysis"]
+
+
+def test_invalid_meal_type_is_rejected(client):
+    assert upload(client, data={"meal_type": "brunch"}).status_code == 400
+
+
+def test_app_assets_are_served(client):
+    for path in ("/icons.js", "/logo.svg", "/apple-touch-icon.png", "/icon-512.png", "/fonts/lato-latin-400-normal.woff2", "/fonts/lato-latin-700-normal.woff2"):
+        assert client.get(path).status_code == 200, path
+    manifest = client.get("/manifest.json").json()
+    assert manifest["name"] == "Tell Me Calories"
+    assert manifest["display"] == "standalone"
+    assert {icon["sizes"] for icon in manifest["icons"]} == {"192x192", "512x512"}
+
+
+def test_page_uses_the_new_name_everywhere(client):
+    page = client.get("/").text
+    assert "NutriLens" not in page
+    assert "<title>Tell Me Calories" in page
+    assert "NutriLens" not in client.get("/app.js").text
