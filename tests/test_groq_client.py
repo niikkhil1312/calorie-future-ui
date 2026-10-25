@@ -9,7 +9,7 @@ from app.groq_client import VisionClient, VisionError
 def make_client(handler, api_key="gsk_test"):
     return VisionClient(
         api_key=api_key,
-        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        model="qwen/qwen3.8-27b",
         base_url="https://api.groq.com/openai/v1",
         transport=httpx.MockTransport(handler),
     )
@@ -30,7 +30,7 @@ def test_request_shape_and_auth_header():
     assert seen["url"] == "https://api.groq.com/openai/v1/chat/completions"
     assert seen["auth"] == "Bearer gsk_test"
     body = seen["body"]
-    assert body["model"] == "meta-llama/llama-4-scout-17b-16e-instruct"
+    assert body["model"] == "qwen/qwen3.8-27b"
     user_content = body["messages"][1]["content"]
     assert 'called "Dinner"' in user_content[0]["text"]
     assert "Portion size: large" in user_content[0]["text"]

@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+DEFAULT_MODEL = "qwen/qwen3.8-27b"
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
 
 

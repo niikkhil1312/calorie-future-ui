@@ -1,6 +1,6 @@
 # 🥗 NutriLens: AI Food Calorie Tracker
 
-Snap a photo of a meal and NutriLens estimates its calories, macronutrients and key micronutrients using Groq's vision model (Llama 4 Scout). Each meal is saved to a daily log, and a dashboard shows today's totals and the last 7 days.
+Snap a photo of a meal and NutriLens estimates its calories, macronutrients and key micronutrients using a vision model on Groq (default `qwen/qwen3.8-27b`). Each meal is saved to a daily log, and a dashboard shows today's totals and the last 7 days.
 
 - 📱 Mobile-first interface: calories-left hero, macro rings, week strip, photo meal cards and a meal detail page
 - 🔐 Own sign-up and sign-in (email and password), with HttpOnly session cookies and per-user private logs
@@ -71,11 +71,11 @@ All settings come from environment variables or `.env`.
 | `DATABASE_PATH` | No | `data/nutrilens.db` | SQLite file (sqlite backend only) |
 | `SESSION_DAYS` | No | `14` | How long a sign-in lasts |
 | `COOKIE_SECURE` | No | `false` | Set `true` when served over HTTPS |
-| `GROQ_MODEL` | No | `meta-llama/llama-4-scout-17b-16e-instruct` | Groq vision model ID |
+| `GROQ_MODEL` | No | `qwen/qwen3.8-27b` | Groq vision model ID |
 | `GROQ_BASE_URL` | No | `https://api.groq.com/openai/v1` | Groq-compatible API base URL |
 | `MAX_UPLOAD_MB` | No | `10` | Maximum upload size |
 
-Groq model IDs change over time. If analysis fails with a model error, check the current list at console.groq.com and set `GROQ_MODEL`.
+Groq retires models regularly. The previous default, Llama 4 Scout, is no longer available, and the current default `qwen/qwen3.8-27b` was the model that accepted images when this was last checked. If analysis fails with "model does not exist" (HTTP 502), list the models your key can use at https://console.groq.com/docs/models and set `GROQ_MODEL` to a current vision-capable one.
 
 ---
 
