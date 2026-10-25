@@ -106,7 +106,9 @@ def create_app(settings: Settings | None = None, vision: Any = None, store: Any 
 
     # ── Health and accounts ──
 
-    @app.get("/api/health")
+    # HEAD is allowed because uptime monitors send it by default. A monitor that visits this
+    # every few minutes also stops a free host from putting the app to sleep.
+    @app.api_route("/api/health", methods=["GET", "HEAD"])
     def health() -> dict[str, Any]:
         return {
             "status": "ok",

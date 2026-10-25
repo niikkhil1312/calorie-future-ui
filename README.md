@@ -76,6 +76,17 @@ Good to know:
 - **The container trusts the proxy's `X-Forwarded-For` header** so rate limits apply per visitor. Only run it behind a proxy such as Render's, not exposed directly to the internet.
 - **Supabase free projects can pause after a period of inactivity.** If the app starts returning storage errors, resume the project in the Supabase dashboard.
 
+### Keeping the free instance awake
+
+Render's free web service [spins down after 15 minutes without traffic](https://render.com/docs/free), and the next visit waits for it to start again. Any web request resets that timer, so a free uptime monitor that visits the health check every few minutes keeps it awake. One always-on free service fits inside Render's 750 free hours a month.
+
+1. Create a free account with an uptime monitor, for example [UptimeRobot](https://uptimerobot.com) (checks every 5 minutes on the free plan) or [cron-job.org](https://cron-job.org) (as often as every minute).
+2. Add an HTTP(S) monitor for `https://<your-service>.onrender.com/api/health`.
+3. Set the interval to 5 minutes. Anything under 15 works.
+4. `/api/health` answers both GET and HEAD, needs no sign-in, and does not touch the database or the AI service, so monitoring costs nothing.
+
+A redeploy still causes one slow start. Supabase's free projects can pause after a period of inactivity, so a monitor on Render does not replace using the app now and then.
+
 ---
 
 ## Configuration

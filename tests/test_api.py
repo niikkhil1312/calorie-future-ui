@@ -198,3 +198,20 @@ def test_page_has_the_camera_screen(client):
     icons = client.get("/icons.js").text
     for name in ('"zap"', '"zap-off"', '"switch-camera"', '"camera-off"', '"scan-line"'):
         assert name in icons, name
+
+
+def test_health_answers_head_requests_for_uptime_monitors(client):
+    head = client.head("/api/health")
+    assert head.status_code == 200
+    assert head.content == b""
+    assert client.get("/api/health").status_code == 200
+
+
+def test_health_needs_no_sign_in(settings, vision):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    with TestClient(create_app(settings=settings, vision=vision)) as anonymous:
+        assert anonymous.head("/api/health").status_code == 200
+        assert anonymous.get("/api/health").status_code == 200
