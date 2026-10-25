@@ -17,13 +17,40 @@
         <p>AI food calorie tracker</p>
       </div>
     </div>
-    <nav class="tabs" role="tablist" aria-label="Sections">
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Sections" hidden>
       <button class="tab active" role="tab" id="tab-analyze" aria-selected="true" aria-controls="view-analyze" data-tab="analyze">📸 Analyze</button>
       <button class="tab" role="tab" id="tab-dashboard" aria-selected="false" aria-controls="view-dashboard" data-tab="dashboard">📊 Dashboard</button>
     </nav>
+    <div class="account" id="account" hidden>
+      <span id="account-email" class="account-email"></span>
+      <button type="button" class="ghost" id="logout">Sign out</button>
+    </div>
   </header>
 
   <main>
+    <section id="view-auth" class="auth-card card" aria-labelledby="auth-title" hidden>
+      <h2 id="auth-title">Welcome to NutriLens</h2>
+      <p class="auth-lede">Sign in to keep your meals in your own private log.</p>
+      <div class="auth-switch" role="tablist" aria-label="Account">
+        <button type="button" class="tab" role="tab" data-auth-mode="login" aria-selected="true">Sign in</button>
+        <button type="button" class="tab" role="tab" data-auth-mode="signup" aria-selected="false">Create account</button>
+      </div>
+      <form id="auth-form" class="auth-form" novalidate>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="auth-email" name="email" autocomplete="email" required maxlength="254">
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="auth-password" name="password" autocomplete="current-password" required maxlength="128">
+          <small id="auth-hint"></small>
+        </label>
+        <button type="submit" class="primary" id="auth-submit">Sign in</button>
+        <p id="auth-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <div id="app-view" hidden>
     <section id="view-analyze" class="view active" role="tabpanel" aria-labelledby="tab-analyze">
       <div class="grid-2">
         <form id="analyze-form" class="card">
@@ -81,6 +108,7 @@
         </div>
       </div>
     </section>
+    </div>
   </main>
 
   <footer class="footer">

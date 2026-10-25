@@ -7,6 +7,8 @@ from PIL import Image
 from app.config import Settings
 from app.main import create_app
 
+PASSWORD = "correct-horse-battery"
+
 GOOD_REPLY = """```json
 {
   "foods": [
@@ -59,8 +61,14 @@ def settings(tmp_path) -> Settings:
         groq_api_key="test-key",
         groq_model="fake-model",
         groq_base_url="http://groq.invalid/openai/v1",
+        storage_backend="sqlite",
         database_path=str(tmp_path / "test.db"),
+        supabase_url="",
+        supabase_service_key="",
+        supabase_bucket="meal-thumbnails",
         max_upload_mb=1,
+        session_days=14,
+        cookie_secure=False,
     )
 
 
@@ -69,7 +77,20 @@ def vision() -> FakeVision:
     return FakeVision()
 
 
+def sign_up(client: TestClient, email: str = "cook@example.com", password: str = PASSWORD) -> dict:
+    response = client.post(
+        "/api/auth/signup",
+        json={"email": email, "password": password},
+        headers={"X-Requested-With": "NutriLens"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 @pytest.fixture
 def client(settings, vision):
+    """A client signed in as a fresh user. Requests carry the CSRF header by default."""
     with TestClient(create_app(settings=settings, vision=vision)) as test_client:
+        test_client.headers["X-Requested-With"] = "NutriLens"
+        sign_up(test_client)
         yield test_client

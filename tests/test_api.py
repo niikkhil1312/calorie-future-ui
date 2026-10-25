@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from app.groq_client import VisionError
-from tests.conftest import FakeVision, make_png
+from tests.conftest import FakeVision, make_png, sign_up
 
 
 def upload(client, data=None, name="meal.png", content=None, content_type="image/png"):
@@ -16,7 +16,7 @@ def upload(client, data=None, name="meal.png", content=None, content_type="image
 
 def test_health_reports_configuration(client):
     body = client.get("/api/health").json()
-    assert body == {"status": "ok", "groq_configured": True, "model": "fake-model"}
+    assert body == {"status": "ok", "groq_configured": True, "model": "fake-model", "storage": "sqlite"}
 
 
 def test_analyze_saves_meal_and_returns_public_shape(client, vision):
@@ -103,6 +103,8 @@ def test_model_rejection_returns_422(settings):
 
     app = create_app(settings=settings, vision=FakeVision(reply='{"error": "No food here."}'))
     with TestClient(app) as client:
+        client.headers["X-Requested-With"] = "NutriLens"
+        sign_up(client)
         response = upload(client)
     assert response.status_code == 422
     assert response.json()["detail"] == "No food here."
@@ -115,6 +117,8 @@ def test_unparseable_model_reply_returns_502(settings):
 
     app = create_app(settings=settings, vision=FakeVision(reply="I think it's pizza!"))
     with TestClient(app) as client:
+        client.headers["X-Requested-With"] = "NutriLens"
+        sign_up(client)
         response = upload(client)
     assert response.status_code == 502
 
@@ -126,6 +130,8 @@ def test_groq_failure_returns_502(settings):
 
     app = create_app(settings=settings, vision=FakeVision(error=VisionError("Groq returned HTTP 500")))
     with TestClient(app) as client:
+        client.headers["X-Requested-With"] = "NutriLens"
+        sign_up(client)
         response = upload(client)
     assert response.status_code == 502
     assert "HTTP 500" in response.json()["detail"]
@@ -138,6 +144,8 @@ def test_missing_api_key_returns_503(settings):
 
     app = create_app(settings=settings, vision=FakeVision(configured=False))
     with TestClient(app) as client:
+        client.headers["X-Requested-With"] = "NutriLens"
+        sign_up(client)
         assert client.get("/api/health").json()["groq_configured"] is False
         response = upload(client)
     assert response.status_code == 503

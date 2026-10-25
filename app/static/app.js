@@ -33,10 +33,18 @@ function formatTime(iso) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, options);
+  const method = (options.method || "GET").toUpperCase();
+  const headers = { ...(options.headers || {}) };
+  // Required by the server's CSRF check on every write. Browsers only send it same-origin.
+  if (method !== "GET") headers["X-Requested-With"] = "NutriLens";
+
+  const response = await fetch(path, { ...options, method, headers, credentials: "same-origin" });
   if (response.status === 204) return null;
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && !path.startsWith("/api/auth/")) {
+      showAuth("Your session has ended. Please sign in again.");
+    }
     let message = `Request failed (${response.status})`;
     if (typeof body.detail === "string") message = body.detail;
     else if (Array.isArray(body.detail) && body.detail[0]?.msg) message = body.detail[0].msg;
@@ -54,7 +62,7 @@ function setStatus(message, kind = "") {
 /* ── Tabs ── */
 
 function showTab(name) {
-  for (const tab of document.querySelectorAll(".tab")) {
+  for (const tab of document.querySelectorAll("#tabs .tab")) {
     const active = tab.dataset.tab === name;
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", String(active));
@@ -295,9 +303,97 @@ async function deleteMeal(meal) {
 
 /* ── Wiring ── */
 
+/* ── Accounts ── */
+
+let authMode = "login";
+
+function setAuthMode(mode) {
+  authMode = mode;
+  for (const button of document.querySelectorAll("[data-auth-mode]")) {
+    const active = button.dataset.authMode === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  }
+  $("#auth-submit").textContent = mode === "login" ? "Sign in" : "Create account";
+  $("#auth-password").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("#auth-hint").textContent = mode === "login" ? "" : "At least 10 characters.";
+  setAuthStatus("");
+}
+
+function setAuthStatus(message, kind = "") {
+  const status = $("#auth-status");
+  status.textContent = message;
+  status.className = `status ${kind}`.trim();
+}
+
+function showAuth(message = "") {
+  $("#app-view").hidden = true;
+  $("#account").hidden = true;
+  $("#tabs").hidden = true;
+  $("#view-auth").hidden = false;
+  $("#auth-password").value = "";
+  setAuthStatus(message, message ? "error" : "");
+}
+
+function showApp(user) {
+  $("#view-auth").hidden = true;
+  $("#app-view").hidden = false;
+  $("#tabs").hidden = false;
+  $("#account").hidden = false;
+  $("#account-email").textContent = user.email;
+  showTab("analyze");
+  checkHealth();
+}
+
+async function onAuthSubmit(event) {
+  event.preventDefault();
+  const email = $("#auth-email").value.trim();
+  const password = $("#auth-password").value;
+  const button = $("#auth-submit");
+  button.disabled = true;
+  setAuthStatus(authMode === "login" ? "Signing in…" : "Creating your account…");
+  try {
+    const path = authMode === "login" ? "/api/auth/login" : "/api/auth/signup";
+    const user = await api(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    $("#auth-password").value = "";
+    showApp(user);
+  } catch (error) {
+    setAuthStatus(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function onLogout() {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+  } finally {
+    showAuth("You have signed out.");
+  }
+}
+
+async function bootstrap() {
+  try {
+    const user = await api("/api/auth/me");
+    showApp(user);
+  } catch {
+    showAuth();
+  }
+}
+
 function init() {
   const dropzone = $("#dropzone");
   const fileInput = $("#file");
+
+  $("#auth-form").addEventListener("submit", onAuthSubmit);
+  for (const button of document.querySelectorAll("[data-auth-mode]")) {
+    button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+  }
+  $("#logout").addEventListener("click", onLogout);
 
   fileInput.addEventListener("change", () => selectFile(fileInput.files[0]));
   dropzone.addEventListener("dragover", (event) => {
@@ -313,15 +409,15 @@ function init() {
 
   $("#analyze-form").addEventListener("submit", onAnalyze);
 
-  for (const tab of document.querySelectorAll(".tab")) {
+  for (const tab of document.querySelectorAll("#tabs .tab")) {
     tab.addEventListener("click", () => showTab(tab.dataset.tab));
   }
   $("#day").value = localDate();
   $("#day").addEventListener("change", loadDashboard);
   $("#refresh").addEventListener("click", loadDashboard);
 
-  showTab("analyze");
-  checkHealth();
+  setAuthMode("login");
+  bootstrap();
 }
 
 init();

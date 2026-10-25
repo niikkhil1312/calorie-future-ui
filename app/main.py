@@ -1,15 +1,30 @@
-"""NutriLens FastAPI application: meal photo analysis, meal log and dashboard API."""
+"""NutriLens FastAPI application: accounts, meal photo analysis, meal log and dashboard API."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
+from .auth import (
+    DUMMY_HASH,
+    SESSION_COOKIE,
+    AuthError,
+    RateLimiter,
+    hash_password,
+    hash_session_token,
+    new_session_token,
+    normalize_email,
+    validate_password,
+    verify_password,
+)
 from .config import Settings, get_settings
-from .db import Database
+from .db import SqliteStore
 from .groq_client import VisionClient, VisionError
 from .images import ImageError, prepare_images
 from .nutrition import (
@@ -20,23 +35,75 @@ from .nutrition import (
     normalize_analysis,
     parse_model_json,
 )
+from .store_errors import DuplicateEmail, StorageError
+from .supabase_store import SupabaseStore
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 PORTIONS = ("small", "regular", "large")
 MAX_SUMMARY_DAYS = 31
 MAX_MEAL_NAME = 80
+CSRF_HEADER = "x-requested-with"
+CSRF_VALUE = "NutriLens"
 
 
-def create_app(settings: Settings | None = None, vision: Any = None) -> FastAPI:
+class Credentials(BaseModel):
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
+
+
+def create_app(settings: Settings | None = None, vision: Any = None, store: Any = None) -> FastAPI:
     settings = settings or get_settings()
-    db = Database(settings.database_path)
+    if store is None:
+        store = (
+            SupabaseStore(settings.supabase_url, settings.supabase_service_key, settings.supabase_bucket)
+            if settings.storage_backend == "supabase"
+            else SqliteStore(settings.database_path)
+        )
     vision = vision or VisionClient(
         api_key=settings.groq_api_key,
         model=settings.groq_model,
         base_url=settings.groq_base_url,
     )
+    login_by_ip = RateLimiter(max_attempts=20, window_seconds=15 * 60)
+    login_by_email = RateLimiter(max_attempts=5, window_seconds=15 * 60)
+    signup_by_ip = RateLimiter(max_attempts=10, window_seconds=60 * 60)
 
-    app = FastAPI(title="NutriLens", version="2.0.0")
+    app = FastAPI(title="NutriLens", version="3.0.0")
+
+    if isinstance(store, SupabaseStore):
+        store.ensure_bucket()
+
+    @app.middleware("http")
+    async def require_custom_header(request: Request, call_next):
+        # Browsers only send custom headers from same-origin fetch calls. This blocks cross-site
+        # form posts that the session cookie would otherwise authorise.
+        if request.url.path.startswith("/api/") and request.method not in ("GET", "HEAD", "OPTIONS"):
+            if request.headers.get(CSRF_HEADER) != CSRF_VALUE:
+                return JSONResponse({"detail": "Missing request header"}, status_code=403)
+        return await call_next(request)
+
+    def current_user(request: Request) -> dict[str, str]:
+        token = request.cookies.get(SESSION_COOKIE)
+        user = store.get_session_user(hash_session_token(token)) if token else None
+        if user is None:
+            raise HTTPException(401, "Sign in to continue")
+        return user
+
+    def start_session(response: Response, user_id: str) -> None:
+        token = new_session_token()
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.session_days)
+        store.create_session(hash_session_token(token), user_id, expires_at.isoformat(timespec="seconds"))
+        response.set_cookie(
+            SESSION_COOKIE,
+            token,
+            max_age=settings.session_days * 24 * 3600,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            path="/",
+        )
+
+    # ── Health and accounts ──
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
@@ -44,7 +111,60 @@ def create_app(settings: Settings | None = None, vision: Any = None) -> FastAPI:
             "status": "ok",
             "groq_configured": vision.configured,
             "model": vision.model,
+            "storage": settings.storage_backend,
         }
+
+    @app.post("/api/auth/signup", status_code=201)
+    def signup(body: Credentials, request: Request, response: Response) -> dict[str, str]:
+        if not signup_by_ip.hit(_client_ip(request)):
+            raise HTTPException(429, "Too many sign-ups from this network. Try again later.")
+        try:
+            email = normalize_email(body.email)
+            validate_password(body.password)
+        except AuthError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        try:
+            user = store.create_user(str(uuid4()), email, hash_password(body.password))
+        except DuplicateEmail as exc:
+            raise HTTPException(409, "An account with this email already exists") from exc
+        start_session(response, user["id"])
+        return {"id": user["id"], "email": user["email"]}
+
+    @app.post("/api/auth/login")
+    def login(body: Credentials, request: Request, response: Response) -> dict[str, str]:
+        ip_key = f"ip:{_client_ip(request)}"
+        try:
+            email = normalize_email(body.email)
+        except AuthError:
+            raise HTTPException(401, "Email or password is incorrect") from None
+        email_key = f"email:{email}"
+        if not login_by_ip.hit(ip_key) or not login_by_email.hit(email_key):
+            raise HTTPException(429, "Too many sign-in attempts. Try again in 15 minutes.")
+
+        user = store.get_user_by_email(email)
+        # Always run one scrypt check, so unknown emails are not faster to reject.
+        password_ok = verify_password(body.password, user["password_hash"] if user else DUMMY_HASH)
+        if user is None or not password_ok:
+            raise HTTPException(401, "Email or password is incorrect")
+
+        login_by_email.reset(email_key)
+        start_session(response, user["id"])
+        return {"id": user["id"], "email": user["email"]}
+
+    @app.post("/api/auth/logout", status_code=204)
+    def logout(request: Request) -> Response:
+        token = request.cookies.get(SESSION_COOKIE)
+        if token:
+            store.delete_session(hash_session_token(token))
+        response = Response(status_code=204)
+        response.delete_cookie(SESSION_COOKIE, path="/")
+        return response
+
+    @app.get("/api/auth/me")
+    def me(user: dict[str, str] = Depends(current_user)) -> dict[str, str]:
+        return {"id": user["id"], "email": user["email"]}
+
+    # ── Meals (all scoped to the signed-in user) ──
 
     @app.post("/api/meals/analyze", status_code=201)
     async def analyze_meal(
@@ -52,6 +172,7 @@ def create_app(settings: Settings | None = None, vision: Any = None) -> FastAPI:
         meal_name: str = Form(""),
         portion: str = Form("regular"),
         meal_date: str | None = Form(None),
+        user: dict[str, str] = Depends(current_user),
     ) -> dict[str, Any]:
         if not vision.configured:
             raise HTTPException(503, "GROQ_API_KEY is not set. Add it to .env and restart the server.")
@@ -81,38 +202,48 @@ def create_app(settings: Settings | None = None, vision: Any = None) -> FastAPI:
         except (NutritionError, VisionError) as exc:
             raise HTTPException(502, str(exc)) from exc
 
-        meal_id = db.insert_meal(
-            meal_name=name or "Unnamed meal",
-            portion=portion,
-            meal_date=meal_day,
-            model=vision.model,
-            analysis=analysis,
-            thumbnail=thumbnail,
-        )
-        return _public_meal(db.get_meal(meal_id))
+        meal_id = str(uuid4())
+        try:
+            store.insert_meal(
+                meal_id=meal_id,
+                user_id=user["id"],
+                meal_name=name or "Unnamed meal",
+                portion=portion,
+                meal_date=meal_day,
+                model=vision.model,
+                analysis=analysis,
+                thumbnail=thumbnail,
+            )
+        except StorageError as exc:
+            raise HTTPException(503, "Could not save the meal. Please try again.") from exc
+        return _public_meal(store.get_meal(user["id"], meal_id))
 
     @app.get("/api/meals")
-    def list_meals(day: str | None = Query(None, alias="date")) -> list[dict[str, Any]]:
+    def list_meals(
+        day: str | None = Query(None, alias="date"),
+        user: dict[str, str] = Depends(current_user),
+    ) -> list[dict[str, Any]]:
         meal_day = _parse_day(day) if day else _today()
-        return [_public_meal(meal) for meal in db.list_meals(meal_day)]
+        return [_public_meal(meal) for meal in store.list_meals(user["id"], meal_day)]
 
     @app.get("/api/meals/{meal_id}")
-    def get_meal(meal_id: int) -> dict[str, Any]:
-        meal = db.get_meal(meal_id)
-        if meal is None:
-            raise HTTPException(404, "Meal not found")
-        return _public_meal(meal)
+    def get_meal(meal_id: str, user: dict[str, str] = Depends(current_user)) -> dict[str, Any]:
+        return _public_meal(store.get_meal(user["id"], meal_id))
 
     @app.get("/api/meals/{meal_id}/thumbnail")
-    def get_thumbnail(meal_id: int) -> Response:
-        content = db.get_thumbnail(meal_id)
+    def get_thumbnail(meal_id: str, user: dict[str, str] = Depends(current_user)) -> Response:
+        content = store.get_thumbnail(user["id"], meal_id)
         if content is None:
             raise HTTPException(404, "Meal not found")
-        return Response(content=content, media_type="image/jpeg", headers={"Cache-Control": "max-age=86400"})
+        return Response(
+            content=content,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=86400"},
+        )
 
     @app.delete("/api/meals/{meal_id}", status_code=204)
-    def delete_meal(meal_id: int) -> Response:
-        if not db.delete_meal(meal_id):
+    def delete_meal(meal_id: str, user: dict[str, str] = Depends(current_user)) -> Response:
+        if not store.delete_meal(user["id"], meal_id):
             raise HTTPException(404, "Meal not found")
         return Response(status_code=204)
 
@@ -120,11 +251,12 @@ def create_app(settings: Settings | None = None, vision: Any = None) -> FastAPI:
     def summary(
         day: str | None = Query(None, alias="date"),
         days: int = Query(7, ge=1, le=MAX_SUMMARY_DAYS),
+        user: dict[str, str] = Depends(current_user),
     ) -> dict[str, Any]:
         end_day = _parse_day(day) if day else _today()
         end = date.fromisoformat(end_day)
         start = (end - timedelta(days=days - 1)).isoformat()
-        totals = db.daily_totals(start, end_day)
+        totals = store.daily_totals(user["id"], start, end_day)
 
         series = []
         for offset in range(days - 1, -1, -1):
@@ -143,9 +275,14 @@ def _public_meal(meal: dict[str, Any] | None) -> dict[str, Any]:
     totals = meal["totals"]
     return {
         **meal,
+        "thumbnail_url": f"/api/meals/{meal['id']}/thumbnail",
         "health": health_score(totals, len(meal["analysis"]["foods"])),
         "macro_split": macro_split(totals),
     }
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 
 def _zero_if_missing(day_totals: dict[str, Any] | None) -> dict[str, Any]:
